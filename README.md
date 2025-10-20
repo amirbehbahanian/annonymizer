@@ -24,15 +24,16 @@ A PyQt6-based desktop application that uses llama.cpp to anonymize text document
 
 ### 1. Download a Model
 
-Download a GGUF format model from Hugging Face or other sources. Place the `.gguf` file in one of these locations:
-- Your Downloads folder
-- Your Documents folder
-- A `models` folder in the application directory
+Download a GGUF format model from Hugging Face or other sources. Save the `.gguf` file anywhere on your computer.
 
 Popular models for text processing:
-- Llama 2 7B Chat
-- Mistral 7B Instruct
-- Code Llama 7B Instruct
+- Llama 2 7B Chat (Q4_K_M) - Good balance of size and quality
+- Mistral 7B Instruct (Q4_K_M) - Excellent instruction following
+- Phi-3 Mini (Q4_K_M) - Smaller, faster option
+
+**Where to download:**
+- [Hugging Face](https://huggingface.co/models?library=gguf) - Search for models with "GGUF" tag
+- Look for Q4_K_M or Q5_K_M quantization for best balance
 
 ### 2. Run the Application
 
@@ -42,9 +43,11 @@ python main.py
 
 ### 3. Load a Model
 
-1. Select a model from the dropdown (automatically scans for .gguf files)
-2. Click "Load Model" to initialize the model
-3. Wait for the model to load (this may take a few minutes for large models)
+1. Click "Browse and Load Model" button
+2. Navigate to your model file using the file browser
+3. Select the `.gguf` file
+4. Wait for the model to load (this may take a minute for large models)
+5. The status will show "✓ model_name.gguf (X threads)" when loaded
 
 ### 4. Upload a Document
 
@@ -97,20 +100,62 @@ The application automatically:
 
 ## Troubleshooting
 
+### Access Violation Error (0x0000000000000000)
+
+If you get "access violation reading 0x0000000000000000", try these solutions:
+
+**1. Run the diagnostic tool first:**
+```bash
+python diagnose_model.py path/to/your/model.gguf
+```
+
+**2. Reinstall llama-cpp-python:**
+```bash
+pip uninstall llama-cpp-python
+pip install llama-cpp-python --force-reinstall --no-cache-dir
+```
+
+**3. Common causes:**
+- **Corrupted model file**: Re-download the model
+- **Incompatible GGUF version**: Update llama-cpp-python to the latest version
+- **Insufficient RAM**: Close other applications or try a smaller model
+- **Wrong CPU build**: On Windows, you may need the AVX2 or AVX-512 version
+
+**4. Try a different model:**
+Some models may have compatibility issues. Test with a known-working model like:
+- Llama 2 7B Chat (Q4_K_M quantization)
+- Phi-3 Mini (3.8B parameters)
+
+**5. Check your model file:**
+- Ensure it ends in `.gguf` (not `.ggml` - older format)
+- Verify the file is not corrupted (should be > 1GB for most models)
+- Make sure the file isn't open in another program
+
 ### Model Loading Issues
-- Ensure you have enough RAM (models typically need 4-16GB depending on size)
-- Try smaller models first (7B parameters or less)
-- Check that the .gguf file is not corrupted
+- **Ensure sufficient RAM**: Models typically need 4-16GB depending on size
+- **Try smaller models first**: Start with 7B parameter models or less
+- **Check CPU compatibility**: The app auto-detects threads but some CPUs may have issues
+- **Verbose output**: Check the console output when loading for specific errors
 
 ### Processing Errors
 - Make sure your document has proper # headers for chunking
 - Try with a smaller document first
 - Check that the anonymization prompt is clear and specific
+- If a chunk fails, it will use the original text (check console for errors)
 
 ### Performance Tips
-- Use models with fewer parameters for faster processing
-- Process smaller documents for quicker results
-- Close other applications to free up system memory
+- **Optimal CPU usage**: The app uses (CPU cores - 1) threads automatically
+- **Memory mapping**: Using mmap for efficient model loading
+- **Batch size**: Set to 512 for balanced performance
+- **Context window**: Set to 2048 (can adjust if needed)
+- **Close other apps**: Free up RAM and CPU resources
+
+### Getting More Help
+
+1. Run the diagnostic script with verbose output
+2. Check the console/terminal for detailed error messages
+3. Look at the llama-cpp-python GitHub issues for similar problems
+4. Try updating to the latest version: `pip install --upgrade llama-cpp-python`
 
 ## Requirements
 
