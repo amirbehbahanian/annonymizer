@@ -142,7 +142,6 @@ class TextAnonymizer(QMainWindow):
         
         self.init_ui()
         self.load_settings()
-        self.update_model_list()
     
     def init_ui(self):
         """Initialize the user interface"""
@@ -163,17 +162,14 @@ class TextAnonymizer(QMainWindow):
         
         # Model Selection Group
         model_group = QGroupBox("Model Selection")
-        model_layout = QHBoxLayout()
+        model_layout = QVBoxLayout()
         
-        self.model_combo = QComboBox()
-        self.model_combo.setMinimumHeight(35)
-        model_layout.addWidget(QLabel("Select Model:"))
-        model_layout.addWidget(self.model_combo)
-        
-        self.load_model_btn = QPushButton("Load Model")
-        self.load_model_btn.setMinimumHeight(35)
+        button_layout = QHBoxLayout()
+        self.load_model_btn = QPushButton("Browse and Load Model")
+        self.load_model_btn.setMinimumHeight(40)
         self.load_model_btn.clicked.connect(self.load_model)
-        model_layout.addWidget(self.load_model_btn)
+        button_layout.addWidget(self.load_model_btn)
+        model_layout.addLayout(button_layout)
         
         self.model_status = QLabel("No model loaded")
         self.model_status.setStyleSheet("color: #e74c3c; font-weight: bold;")
@@ -282,36 +278,19 @@ class TextAnonymizer(QMainWindow):
         except Exception as e:
             print(f"Error saving settings: {e}")
     
-    def update_model_list(self):
-        """Update the list of available models"""
-        self.model_combo.clear()
-        
-        # Look for .gguf files in common directories
-        search_paths = [
-            Path.home() / "Downloads",
-            Path.home() / "Documents",
-            Path.cwd(),
-            Path.cwd() / "models"
-        ]
-        
-        models_found = []
-        for search_path in search_paths:
-            if search_path.exists():
-                for gguf_file in search_path.glob("*.gguf"):
-                    models_found.append(str(gguf_file))
-        
-        if models_found:
-            self.model_combo.addItems(models_found)
-        else:
-            self.model_combo.addItem("No .gguf models found - Please add models to Downloads, Documents, or models folder")
-    
     def load_model(self):
-        """Load the selected model"""
-        if self.model_combo.currentText().startswith("No .gguf"):
-            QMessageBox.warning(self, "No Models", "Please add .gguf model files to your Downloads, Documents, or models folder.")
-            return
+        """Browse for and load a model file"""
+        # Open file dialog to select model
+        model_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Model File",
+            str(Path.home()),
+            "GGUF Model files (*.gguf);;All files (*.*)"
+        )
         
-        model_path = self.model_combo.currentText()
+        if not model_path:
+            return  # User cancelled
+        
         if not os.path.exists(model_path):
             QMessageBox.warning(self, "Model Not Found", f"Model file not found: {model_path}")
             return
