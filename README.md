@@ -114,7 +114,7 @@ You should see: `Ollama is running`
 
 ```bash
 git clone <repository-url>
-cd annonymizer
+cd anonymizer
 ```
 
 ### 2. Install Python Dependencies
