@@ -143,10 +143,13 @@ class OllamaAnonymizationWorker(QThread):
             for i, chunk in enumerate(self.chunks, start=1):
                 if self._stop.is_set():
                     break
-                full_prompt = f"""{self.prompt}
-
-Text to anonymize:
-{chunk}"""
+                # Construct few-shot prompt
+                full_prompt = (
+                    "Replace all names, places, dates, and ages in the following text with ***. "
+                    "Respond only with the modified text, no explanations.\n\n"
+                    + self.prompt +
+                    f"Original: {chunk}\nDe-identified: "
+                )
                 try:
                     text = self._stream_ollama(full_prompt)
                 except Exception as e:
@@ -165,30 +168,34 @@ Text to anonymize:
 # ============================== UI ==============================
 
 class SettingsDialog(QDialog):
-    def __init__(self, current_prompt: str = "", parent=None):
+    def __init__(self, current_examples: str = "", parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Settings - Anonymization Prompt")
+        self.setWindowTitle("Settings - Few-Shot Examples")
         self.setModal(True)
-        self.resize(700, 420)
+        self.resize(700, 500)
 
         layout = QVBoxLayout()
         instructions = QLabel(
-            "Configure the anonymization prompt. It should instruct the model to remove/replace "
-            "names, addresses, phones, emails, etc., with placeholders like [NAME], [ADDRESS]."
+            "Configure the few-shot examples for anonymization. Each example should show "
+            "an original text and its de-identified version with *** replacements."
         )
         instructions.setWordWrap(True)
         instructions.setStyleSheet("color:#666; margin-bottom:8px;")
         layout.addWidget(instructions)
 
-        self.prompt_edit = QTextEdit()
-        self.prompt_edit.setPlainText(current_prompt)
-        self.prompt_edit.setPlaceholderText(
-            "Please anonymize the following text by replacing all personal information "
-            "such as names, addresses, phone numbers, email addresses, and other identifying "
-            "details with placeholders like [NAME], [ADDRESS], etc. Keep meaning intact. "
-            "Return only the anonymized text."
+        examples_label = QLabel("Few-Shot Examples:")
+        examples_label.setStyleSheet("font-weight:bold; margin-top:10px;")
+        layout.addWidget(examples_label)
+
+        self.examples_edit = QTextEdit()
+        self.examples_edit.setPlainText(current_examples)
+        self.examples_edit.setPlaceholderText(
+            "Original: Sarah and John visited New York on July 4th, 2021. Sarah was 25.\n"
+            "De-identified: *** and *** visited *** on ***, ***. *** was ***.\n\n"
+            "Original: Dr. Ahmed treated Emily in Boston when she was 30, back in 2015.\n"
+            "De-identified: *** treated *** in *** when she was ***, back in ***."
         )
-        layout.addWidget(self.prompt_edit)
+        layout.addWidget(self.examples_edit)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
@@ -196,8 +203,8 @@ class SettingsDialog(QDialog):
         layout.addWidget(buttons)
         self.setLayout(layout)
 
-    def get_prompt(self) -> str:
-        return self.prompt_edit.toPlainText().strip()
+    def get_examples(self) -> str:
+        return self.examples_edit.toPlainText().strip()
 
 
 class TextAnonymizer(QMainWindow):
@@ -215,13 +222,15 @@ class TextAnonymizer(QMainWindow):
         self.anonymized_chunks: List[str] = []
 
         self.settings_file = "settings.json"
-        self.default_prompt = (
-            "Please anonymize the following text by replacing all personal information "
-            "such as names, addresses, phone numbers, email addresses, and other "
-            "identifying details with generic placeholders like [NAME], [ADDRESS], etc. "
-            "Keep the structure and meaning intact. Return only the anonymized text."
+        self.default_examples = (
+            "Original: Sarah and John visited New York on July 4th, 2021. Sarah was 25.\n"
+            "De-identified: *** and *** visited *** on ***, ***. *** was ***.\n\n"
+            "Original: Dr. Ahmed treated Emily in Boston when she was 30, back in 2015.\n"
+            "De-identified: *** treated *** in *** when she was ***, back in ***.\n\n"
+            "Original: Michael and Anna celebrated in Paris in June 2020, Michael turned 40.\n"
+            "De-identified: *** and *** celebrated in *** in ***, *** turned ***.\n\n"
         )
-        self.current_prompt = self.default_prompt
+        self.current_examples = self.default_examples
 
         self._init_ui()
         self._load_settings()
@@ -285,13 +294,13 @@ class TextAnonymizer(QMainWindow):
         # Settings
         sg = QGroupBox("Settings")
         sg_l = QHBoxLayout()
-        self.settings_btn = QPushButton("Configure Prompt")
+        self.settings_btn = QPushButton("Configure Examples")
         self.settings_btn.setMinimumHeight(34)
         self.settings_btn.clicked.connect(self._open_settings)
         sg_l.addWidget(self.settings_btn)
-        self.current_prompt_label = QLabel("Default prompt loaded")
-        self.current_prompt_label.setStyleSheet("color:#7f8c8d; font-style:italic;")
-        sg_l.addWidget(self.current_prompt_label)
+        self.current_examples_label = QLabel("Default examples loaded")
+        self.current_examples_label.setStyleSheet("color:#7f8c8d; font-style:italic;")
+        sg_l.addWidget(self.current_examples_label)
         sg.setLayout(sg_l)
         layout.addWidget(sg)
 
@@ -341,18 +350,18 @@ class TextAnonymizer(QMainWindow):
             if os.path.exists("settings.json"):
                 with open("settings.json", "r", encoding="utf-8") as f:
                     s = json.load(f)
-                    self.current_prompt = s.get("prompt", self.default_prompt)
+                    self.current_examples = s.get("examples", self.default_examples)
         except Exception as e:
             print("Error loading settings:", e)
-            self.current_prompt = self.default_prompt
-        self.current_prompt_label.setText(
-            "Custom prompt loaded" if self.current_prompt != self.default_prompt else "Default prompt loaded"
+            self.current_examples = self.default_examples
+        self.current_examples_label.setText(
+            "Custom examples loaded" if self.current_examples != self.default_examples else "Default examples loaded"
         )
 
     def _save_settings(self):
         try:
             with open("settings.json", "w", encoding="utf-8") as f:
-                json.dump({"prompt": self.current_prompt}, f, indent=2)
+                json.dump({"examples": self.current_examples}, f, indent=2)
         except Exception as e:
             print("Error saving settings:", e)
 
@@ -435,12 +444,12 @@ class TextAnonymizer(QMainWindow):
             self.statusBar().showMessage("Error loading document")
 
     def _open_settings(self):
-        dlg = SettingsDialog(self.current_prompt, self)
+        dlg = SettingsDialog(self.current_examples, self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            new_prompt = dlg.get_prompt()
-            if new_prompt and new_prompt != self.current_prompt:
-                self.current_prompt = new_prompt
-                self.current_prompt_label.setText("Custom prompt loaded")
+            new_examples = dlg.get_examples()
+            if new_examples and new_examples != self.current_examples:
+                self.current_examples = new_examples
+                self.current_examples_label.setText("Custom examples loaded")
                 self._save_settings()
                 self.statusBar().showMessage("Settings updated")
 
@@ -464,8 +473,8 @@ class TextAnonymizer(QMainWindow):
     def _start_anonymization(self):
         if not self.process_btn.isEnabled():
             return
-        if not self.current_prompt.strip():
-            QMessageBox.warning(self, "No Prompt", "Please configure the anonymization prompt first.")
+        if not self.current_examples.strip():
+            QMessageBox.warning(self, "No Examples", "Please configure the few-shot examples first.")
             return
         if not self.original_text.strip():
             QMessageBox.warning(self, "No Document", "Please upload a document first.")
@@ -503,7 +512,7 @@ class TextAnonymizer(QMainWindow):
         self.proc_worker = OllamaAnonymizationWorker(
             base_url=self.ollama_url,
             model_name=self.model_name,
-            prompt=self.current_prompt,
+            prompt=self.current_examples,
             chunks=chunks
         )
         self.proc_worker.progress_updated.connect(self._on_progress)
