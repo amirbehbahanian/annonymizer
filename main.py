@@ -114,7 +114,10 @@ class OllamaAnonymizationWorker(QThread):
             "model": self.model_name,
             "prompt": full_prompt,
             "stream": True,
-            "temperature": 0.1,
+            "num_predict": 1000,  # max_tokens
+            "temperature": 0.5,
+            "top_p": 0.5,
+            "repeat_penalty": 1.2,
             "keep_alive": "30m",  # prevent model from being unloaded between chunks
         }
         parts: List[str] = []
