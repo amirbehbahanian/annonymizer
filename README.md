@@ -392,7 +392,7 @@ If you use this tool in your research, publications, or commercial applications,
 ```bibtex
 @software{text_anonymizer_2025,
   title = {Text Anonymizer: Few-Shot Learning for Privacy-Preserving Data Preparation},
-  author = {[Your Name/Organization]},
+  author = {[Amir Behbahanian]},
   year = {2025},
   url = {https://github.com/[your-repo]/annonymizer},
   note = {A local, few-shot learning tool for anonymizing sensitive data before external processing}
